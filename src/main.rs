@@ -4,7 +4,7 @@ use std::{
     path::Path,
     process::{Child, Command, Stdio},
 };
-
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() {
     loop {
         // use the `>` character as the prompt
@@ -38,6 +38,7 @@ fn main() {
 
                     previous_command = None;
                 }
+                "version" => println!("Rash version: {}", VERSION),
                 "exit" => return,
                 command => {
                     let stdin = previous_command.map_or(Stdio::inherit(), |output: Child| {
