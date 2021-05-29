@@ -1,68 +1,81 @@
-//  Rash
-//Rusty bASH
-// Really Awesome SHell
-use std::io::Write;
-use std::io::{stdin, stdout};
+use std::{
+    env,
+    io::{stdin, stdout, Write},
+    path::Path,
+    process::{Child, Command, Stdio},
+};
 
-use toml::Value;
-
-const VALUE: &str = "
-cursor='> '
-";
-
-const VERSION: &str = "0.1.0";
 fn main() {
-    let value = VALUE.parse::<Value>().unwrap();
-    let motd = "frick";
-    let terminal_cursor = value["cursor"].as_str();
-
-    println!("{}", value);
-
-    clear_term();
-    println!("{}", motd);
-
     loop {
-        print!("{}", terminal_cursor.unwrap());
-        let _err = stdout().flush(); // Excplicitly flush to ensure > gets printed
-                                     // handle the _err
+        // use the `>` character as the prompt
+        // need to explicitly flush this to ensure it prints before read_line
+
+        print!("~> ");
+        stdout().flush().unwrap();
+
         let mut input = String::new();
-        stdin().read_line(&mut input).unwrap(); // read_line leaves a trailing newline, which trim removes
-        let command = input.trim();
-        match command {
-            "rush" => {
-                println!("Version: {}", VERSION);
-            } // Maybe parse via clap
-            "clear()" | "clean()" => {
-                clear_term();
-            }
-            "random()" => {
-                println!("1"); // this has been decided as the cryptographically secure random
-            }
-            "script()" => {
-                let mut script = String::new();
-                loop {
-                    let mut line = String::new();
-                    stdin().read_line(&mut line).unwrap(); // read_line leaves a trailing
-                    line = line.trim().to_string();
-                    if line == "end()" {
-                        println!("{}", script);
-                        break;
-                    } else {
-                        // append line to script
-                        script = format!("{}\n{}", script, line);
+        stdin().read_line(&mut input).unwrap();
+
+        // read_line leaves a trailing newline, which trim removes
+        // this needs to be peekable so we can determine when we are on the last command
+        let mut commands = input.trim().split(" | ").peekable();
+        let mut previous_command = None;
+
+        while let Some(command) = commands.next() {
+            // everything after the first whitespace character is interpreted as args to the command
+            let mut parts = command.trim().split_whitespace();
+            let command = parts.next().unwrap();
+            let args = parts;
+
+            match command {
+                "cd" => {
+                    // default to '/' as new directory if one was not provided
+                    let new_dir = args.peekable().peek().map_or("/", |x| *x);
+                    let root = Path::new(new_dir);
+                    if let Err(e) = env::set_current_dir(&root) {
+                        eprintln!("{}", e);
                     }
+
+                    previous_command = None;
+                }
+                "exit" => return,
+                command => {
+                    let stdin = previous_command.map_or(Stdio::inherit(), |output: Child| {
+                        Stdio::from(output.stdout.unwrap())
+                    });
+
+                    let stdout = if commands.peek().is_some() {
+                        // there is another command piped behind this one
+                        // prepare to send output to the next command
+                        Stdio::piped()
+                    } else {
+                        // there are no more commands piped behind this one
+                        // send output to shell stdout
+                        Stdio::inherit()
+                    };
+
+                    let output = Command::new(command)
+                        .args(args)
+                        .stdin(stdin)
+                        .stdout(stdout)
+                        .spawn();
+
+                    match output {
+                        Ok(output) => {
+                            previous_command = Some(output);
+                        }
+                        Err(e) => {
+                            previous_command = None;
+                            eprintln!("{}", e);
+                        }
+                    };
                 }
             }
-            "ls" => {
-                println!("bonk");
-            }
-            _ => {
-                println!("Command {} not found", command);
-            }
+        }
+
+        if let Some(mut final_command) = previous_command {
+            // block until the final command has finished
+            final_command.wait().unwrap();
         }
     }
-}
-
-fn clear_term() {
-    print!("\x1B[2J\x1B[1;1H");
 }
