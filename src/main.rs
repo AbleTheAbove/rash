@@ -10,7 +10,7 @@ fn main() {
         // use the `>` character as the prompt
         // need to explicitly flush this to ensure it prints before read_line
 
-        print!("~> ");
+        print!("{} ~> ", std::env::current_dir().unwrap().display());
         stdout().flush().unwrap();
 
         let mut input = String::new();
