@@ -22,6 +22,10 @@ fn main() {
         let mut previous_command = None;
 
         while let Some(command) = commands.next() {
+            if command.is_empty() {
+                continue;
+            }
+
             // everything after the first whitespace character is interpreted as args to the command
             let mut parts = command.trim().split_whitespace();
             let command = parts.next().unwrap();
