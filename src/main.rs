@@ -7,10 +7,8 @@ use std::{
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() {
     loop {
-        // use the `>` character as the prompt
-        // need to explicitly flush this to ensure it prints before read_line
-
         print!("~> ");
+        // need to explicitly flush this to ensure it prints before read_line
         stdout().flush().unwrap();
 
         let mut input = String::new();
@@ -39,6 +37,7 @@ fn main() {
                     previous_command = None;
                 }
                 "version" => println!("Rash version: {}", VERSION),
+                "help" => println!("Able Shell help utility"),
                 "exit" => return,
                 command => {
                     let stdin = previous_command.map_or(Stdio::inherit(), |output: Child| {
