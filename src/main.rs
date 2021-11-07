@@ -72,7 +72,9 @@ fn main() {
                         }
                         Err(e) => {
                             previous_command = None;
-                            eprintln!("{}", e);
+                            if e.to_string() == "No such file or directory (os error 2)" {
+                                eprintln!("{} not found", command);
+                            }
                         }
                     };
                 }
